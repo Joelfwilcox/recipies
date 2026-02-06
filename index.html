@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Recipe Finder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #111;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            -webkit-appearance: none;
+        }
+
+        button:active {
+            background: #0052a3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:active {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:active {
+            background: #218838;
+        }
+
+        .btn-view {
+            background: #0066cc;
+            padding: 8px 16px;
+            font-size: 14px;
+            width: auto;
+        }
+
+        .btn-view:active {
+            background: #0052a3;
+        }
+
+        .btn-remove {
+            background: #dc3545;
+            padding: 8px 16px;
+            font-size: 14px;
+            width: auto;
+            margin-left: 8px;
+        }
+
+        .btn-remove:active {
+            background: #c82333;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .recipe-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .recipe-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #111;
+        }
+
+        .recipe-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .recipe-actions button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .recipe-content {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            color: #444;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+        }
+
+        .list-item {
+            background: #e7f3ff;
+            border: 1px solid #0066cc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-item-title {
+            font-weight: 600;
+            color: #111;
+            flex: 1;
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .portion-input {
+            width: 60px;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .portion-label {
+            font-size: 12px;
+            color: #666;
+            margin-right: 4px;
+        }
+
+        .my-list-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #111;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .btn-generate {
+            background: #28a745;
+            margin-bottom: 20px;
+        }
+
+        .btn-generate:active {
+            background: #218838;
+        }
+
+        .shopping-list {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .shopping-list-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .shopping-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-section {
+            margin-bottom: 24px;
+        }
+
+        .category-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0066cc;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1>Recipe Finder</h1>
+            <button id="settingsBtn" class="hidden" onclick="showSettings()" style="width: auto; padding: 8px 16px; font-size: 14px; background: #6c757d;">⚙️ Settings</button>
+        </div>
+        <p class="subtitle">Search recipes and build your list</p>
+
+        <!-- Setup Section -->
+        <div id="setupSection" class="card">
+            <button id="backBtn" class="hidden" onclick="backToApp()" style="width: auto; padding: 8px 16px; font-size: 14px; background: #6c757d; margin-bottom: 16px;">← Back</button>
+            <div class="instructions">
+                <strong>Setup Instructions:</strong>
+                <ol>
+                    <li>Go to <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></li>
+                    <li>Click "New integration"</li>
+                    <li>Give it a name and select your workspace</li>
+                    <li>Copy the "Internal Integration Token"</li>
+                    <li>Share your recipe pages with this integration</li>
+                </ol>
+            </div>
+
+            <div class="form-group">
+                <label for="tokenInput">Notion API Token</label>
+                <input type="password" id="tokenInput" placeholder="secret_... or ntn_...">
+            </div>
+
+            <button id="saveTokenBtn" onclick="saveToken()">Save Token</button>
+            <button id="resetTokenBtn" onclick="resetToDefault()" style="background: #6c757d; margin-top: 10px;">Reset to Default Token</button>
+
+            <div id="setupStatus" class="status hidden"></div>
+        </div>
+
+        <!-- Main App Section -->
+        <div id="appSection" class="hidden">
+            <!-- My List Section -->
+            <div class="my-list-section">
+                <div class="card">
+                    <div class="section-title">My Recipes (<span id="listCount">0</span>)</div>
+                    <div id="recipeList"></div>
+                </div>
+            </div>
+
+            <!-- Generate Shopping List Button -->
+            <div id="generateSection" class="hidden">
+                <button class="btn-generate" onclick="generateShoppingList()">🛒 Generate Shopping List</button>
+            </div>
+
+            <!-- Shopping List Display -->
+            <div id="shoppingListSection" class="hidden">
+                <div class="shopping-list">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div class="section-title">Shopping List</div>
+                        <button onclick="closeShoppingList()" style="width: auto; padding: 8px 16px; font-size: 14px; background: #6c757d;">Close</button>
+                    </div>
+                    <div id="shoppingListContent"></div>
+                </div>
+            </div>
+
+            <!-- Search Section -->
+            <div class="card">
+                <div class="form-group">
+                    <label for="searchInput">Search Recipes</label>
+                    <input type="text" id="searchInput" placeholder="Type recipe name..." onkeypress="handleSearchKeypress(event)">
+                </div>
+
+                <button id="searchBtn" onclick="search()">Search</button>
+
+                <div id="searchStatus" class="status hidden"></div>
+            </div>
+
+            <div id="searchResults"></div>
+        </div>
+    </div>
+
+    <script>
+        // Check for user-provided token in localStorage, otherwise use server default
+        let notionToken = localStorage.getItem('notion_token') || 'server-default';
+        let recipeList = JSON.parse(localStorage.getItem('recipe_list') || '[]');
+
+        // App is ready immediately - uses server token by default, but user can override
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            document.getElementById('settingsBtn').classList.remove('hidden'); // Show settings so user can change token
+            renderList();
+        });
+
+        function backToApp() {
+            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            document.getElementById('backBtn').classList.add('hidden');
+        }
+
+        function showSettings() {
+            document.getElementById('appSection').classList.add('hidden');
+            document.getElementById('setupSection').classList.remove('hidden');
+            document.getElementById('backBtn').classList.remove('hidden');
+            // Show current token or placeholder if using server default
+            const currentToken = localStorage.getItem('notion_token');
+            document.getElementById('tokenInput').value = currentToken || '';
+            document.getElementById('tokenInput').placeholder = currentToken ? 'Your custom token' : 'Using default token (enter your own to override)';
+        }
+
+        function resetToDefault() {
+            localStorage.removeItem('notion_token');
+            notionToken = 'server-default';
+            document.getElementById('tokenInput').value = '';
+            document.getElementById('tokenInput').placeholder = 'Using default token (enter your own to override)';
+            showStatus(document.getElementById('setupStatus'), 'Reset to default token. The app will use the built-in Notion connection.', 'success');
+            setTimeout(() => {
+                document.getElementById('setupSection').classList.add('hidden');
+                document.getElementById('appSection').classList.remove('hidden');
+            }, 1500);
+        }
+
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 2000;
+
+        async function callNotionAPI(endpoint, method, requestBody, retryCount = 0) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+                const response = await fetch('/api/notion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        endpoint,
+                        method,
+                        requestBody,
+                        token: notionToken !== 'server-default' ? notionToken : null
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'API request failed');
+                }
+
+                return await response.json();
+            } catch (error) {
+                // Retry up to MAX_RETRIES times
+                if (retryCount < MAX_RETRIES - 1) {
+                    console.log(`API call failed (attempt ${retryCount + 1}/${MAX_RETRIES}), retrying in ${RETRY_DELAY}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
+                    return callNotionAPI(endpoint, method, requestBody, retryCount + 1);
+                }
+                throw error;
+            }
+        }
+
+        async function saveToken() {
+            const token = document.getElementById('tokenInput').value.trim();
+            const statusEl = document.getElementById('setupStatus');
+            const btn = document.getElementById('saveTokenBtn');
+
+            if (!token) {
+                showStatus(statusEl, 'Please enter a token', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            notionToken = token;
+
+            try {
+                await callNotionAPI('/search', 'POST', { page_size: 1 });
+                localStorage.setItem('notion_token', token);
+                showStatus(statusEl, 'Token saved successfully!', 'success');
+                
+                setTimeout(() => {
+                    document.getElementById('setupSection').classList.add('hidden');
+                    document.getElementById('appSection').classList.remove('hidden');
+                    document.getElementById('settingsBtn').classList.remove('hidden');
+                    renderList();
+                }, 1000);
+            } catch (error) {
+                showStatus(statusEl, 'Error: ' + error.message, 'error');
+                notionToken = null;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Token';
+            }
+        }
+
+        async function search() {
+            const query = document.getElementById('searchInput').value.trim();
+            const statusEl = document.getElementById('searchStatus');
+            const btn = document.getElementById('searchBtn');
+            const resultsEl = document.getElementById('searchResults');
+
+            if (!query) {
+                showStatus(statusEl, 'Please enter a search query', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Searching...';
+            resultsEl.innerHTML = '<div class="loading">Searching recipes...</div>';
+            statusEl.classList.add('hidden');
+
+            try {
+                const searchData = await callNotionAPI('/search', 'POST', {
+                    query: query,
+                    filter: {
+                        property: 'object',
+                        value: 'page'
+                    },
+                    page_size: 10
+                });
+                
+                if (searchData.results.length === 0) {
+                    resultsEl.innerHTML = '<div class="card"><div style="text-align: center; color: #666;">No recipes found matching your query.</div></div>';
+                    return;
+                }
+
+                resultsEl.innerHTML = searchData.results.map(page => {
+                    const title = extractTitle(page);
+                    const isInList = recipeList.some(r => r.id === page.id);
+                    return `
+                        <div class="recipe-item" id="recipe-${page.id}">
+                            <div class="recipe-title">${title}</div>
+                            <div class="recipe-actions">
+                                <button onclick="viewRecipeInSearch('${page.id}', '${title.replace(/'/g, "\\'")}')">View Recipe</button>
+                                <button class="btn-success" onclick="addToList('${page.id}', '${title.replace(/'/g, "\\'")}')">
+                                    ${isInList ? 'Added ✓' : 'Add to List'}
+                                </button>
+                            </div>
+                            <div id="search-content-${page.id}" class="recipe-content hidden"></div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                showStatus(statusEl, 'Error: ' + error.message, 'error');
+                resultsEl.innerHTML = '';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Search';
+            }
+        }
+
+        async function viewRecipeInSearch(pageId) {
+            const contentEl = document.getElementById(`search-content-${pageId}`);
+            
+            if (!contentEl.classList.contains('hidden')) {
+                contentEl.classList.add('hidden');
+                return;
+            }
+
+            contentEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Loading...</div>';
+            contentEl.classList.remove('hidden');
+
+            try {
+                const contentData = await callNotionAPI(`/blocks/${pageId}/children`, 'GET');
+                const content = extractContent(contentData.results);
+                contentEl.innerHTML = content || 'No content found in this recipe.';
+            } catch (error) {
+                contentEl.innerHTML = `<div style="color: #dc3545;">Error loading recipe: ${error.message}</div>`;
+            }
+        }
+
+        function updatePortions(index, value) {
+            const portions = parseFloat(value) || 1;
+            recipeList[index].portions = portions;
+            localStorage.setItem('recipe_list', JSON.stringify(recipeList));
+            
+            // Reload the recipe content if it's currently visible
+            const recipe = recipeList[index];
+            const contentEl = document.getElementById(`list-content-${recipe.id}`);
+            if (!contentEl.classList.contains('hidden')) {
+                contentEl.classList.add('hidden');
+                viewRecipeInList(recipe.id, index);
+            }
+        }
+
+        async function viewRecipeInList(pageId, index) {
+            const contentEl = document.getElementById(`list-content-${pageId}`);
+            
+            if (!contentEl.classList.contains('hidden')) {
+                contentEl.classList.add('hidden');
+                return;
+            }
+
+            contentEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Loading...</div>';
+            contentEl.classList.remove('hidden');
+
+            try {
+                const contentData = await callNotionAPI(`/blocks/${pageId}/children`, 'GET');
+                const portions = recipeList[index].portions || 1;
+                const content = extractContent(contentData.results, portions);
+                contentEl.innerHTML = content || 'No content found in this recipe.';
+            } catch (error) {
+                contentEl.innerHTML = `<div style="color: #dc3545;">Error loading recipe: ${error.message}</div>`;
+            }
+        }
+
+        function addToList(pageId, title) {
+            if (recipeList.some(r => r.id === pageId)) {
+                return;
+            }
+
+            recipeList.push({ id: pageId, title: title, portions: 1 });
+            localStorage.setItem('recipe_list', JSON.stringify(recipeList));
+            renderList();
+
+            // Update button
+            const recipeEl = document.getElementById(`recipe-${pageId}`);
+            if (recipeEl) {
+                const btn = recipeEl.querySelector('.btn-success');
+                btn.textContent = 'Added ✓';
+            }
+        }
+
+        function removeFromList(pageId) {
+            recipeList = recipeList.filter(r => r.id !== pageId);
+            localStorage.setItem('recipe_list', JSON.stringify(recipeList));
+            renderList();
+        }
+
+        function renderList() {
+            const listEl = document.getElementById('recipeList');
+            const countEl = document.getElementById('listCount');
+            const generateBtn = document.getElementById('generateSection');
+            
+            countEl.textContent = recipeList.length;
+
+            if (recipeList.length === 0) {
+                listEl.innerHTML = '<div class="empty-state">No recipes added yet. Search below to add recipes.</div>';
+                generateBtn.classList.add('hidden');
+                return;
+            }
+
+            generateBtn.classList.remove('hidden');
+
+            listEl.innerHTML = recipeList.map((recipe, index) => `
+                <div class="list-item" id="list-item-${recipe.id}">
+                    <div class="list-item-title">${recipe.title}</div>
+                    <div class="list-item-actions">
+                        <span class="portion-label">Portions:</span>
+                        <input type="number" class="portion-input" value="${recipe.portions || 1}" min="0.5" step="0.5" onchange="updatePortions(${index}, this.value)">
+                        <button class="btn-view" onclick="viewRecipeInList('${recipe.id}', ${index})">View</button>
+                        <button class="btn-remove" onclick="removeFromList('${recipe.id}')">Remove</button>
+                    </div>
+                </div>
+                <div id="list-content-${recipe.id}" class="recipe-content hidden" style="margin-bottom: 12px;"></div>
+            `).join('');
+        }
+
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                search();
+            }
+        }
+
+        function extractTitle(page) {
+            try {
+                if (page.properties) {
+                    const titleProp = Object.values(page.properties).find(prop => prop.type === 'title');
+                    if (titleProp?.title?.[0]?.plain_text) {
+                        return titleProp.title[0].plain_text;
+                    }
+                }
+                return 'Untitled';
+            } catch {
+                return 'Untitled';
+            }
+        }
+
+        function extractContent(blocks, multiplier = 1) {
+            return blocks.map(block => {
+                const type = block.type;
+                const content = block[type];
+                
+                if (content?.rich_text) {
+                    let text = content.rich_text.map(rt => rt.plain_text).join('');
+                    
+                    // Scale quantities if multiplier is not 1
+                    if (multiplier !== 1) {
+                        text = scaleQuantities(text, multiplier);
+                    }
+                    
+                    return text;
+                }
+                return '';
+            }).filter(text => text).join('\n\n');
+        }
+
+        function scaleQuantities(text, multiplier) {
+            // Match patterns like "2 cups", "1/2 tsp", "1.5 lbs", etc.
+            return text.replace(/(\d+\.?\d*|\d+\/\d+)\s*(cup|cups|tsp|tbsp|teaspoon|tablespoon|oz|ounce|lb|pound|g|gram|kg|ml|l|liter)/gi, (match, quantity, unit) => {
+                let num;
+                
+                // Handle fractions
+                if (quantity.includes('/')) {
+                    const [numerator, denominator] = quantity.split('/').map(Number);
+                    num = numerator / denominator;
+                } else {
+                    num = parseFloat(quantity);
+                }
+                
+                const scaled = num * multiplier;
+                
+                // Format the result nicely
+                if (scaled % 1 === 0) {
+                    return `${scaled} ${unit}`;
+                } else if (scaled < 1) {
+                    // Try to convert to fraction for small numbers
+                    const fraction = decimalToFraction(scaled);
+                    return `${fraction} ${unit}`;
+                } else {
+                    return `${scaled.toFixed(2)} ${unit}`;
+                }
+            });
+        }
+
+        function decimalToFraction(decimal) {
+            const tolerance = 0.01;
+            const fractions = [
+                [1, 2], [1, 3], [2, 3], [1, 4], [3, 4],
+                [1, 8], [3, 8], [5, 8], [7, 8]
+            ];
+            
+            for (const [num, den] of fractions) {
+                if (Math.abs(decimal - num / den) < tolerance) {
+                    return `${num}/${den}`;
+                }
+            }
+            
+            return decimal.toFixed(2);
+        }
+
+        function showStatus(element, message, type) {
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.classList.remove('hidden');
+        }
+
+        async function generateShoppingList() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            try {
+                const ingredients = [];
+
+                // Fetch all recipe contents
+                for (const recipe of recipeList) {
+                    const contentData = await callNotionAPI(`/blocks/${recipe.id}/children`, 'GET');
+                    const portions = recipe.portions || 1;
+                    const content = extractContent(contentData.results, portions);
+                    
+                    // Extract ingredients (lines that contain measurements)
+                    const lines = content.split('\n');
+                    let inIngredientsSection = false;
+                    
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        const lower = trimmed.toLowerCase();
+                        
+                        // Detect ingredients section
+                        if (lower.includes('ingredient') || lower.includes('what you need')) {
+                            inIngredientsSection = true;
+                            continue;
+                        }
+                        
+                        // Stop at instructions section
+                        if (lower.includes('instruction') || lower.includes('direction') || lower.includes('step') || lower.includes('method') || lower.includes('preparation')) {
+                            inIngredientsSection = false;
+                            continue;
+                        }
+                        
+                        // Only process if we're in ingredients section or haven't found a section yet
+                        if (trimmed && /\d+/.test(trimmed) && /(cup|tsp|tbsp|teaspoon|tablespoon|oz|ounce|lb|pound|g|gram|kg|ml|l|liter)/i.test(trimmed)) {
+                            // Exclude lines that look like instructions (contain verbs)
+                            const instructionWords = /\b(add|mix|stir|cook|bake|heat|boil|simmer|pour|combine|whisk|blend|chop|dice|slice|cut|place|put|set|preheat|bring|reduce|remove|serve|garnish|season|sprinkle|drizzle)\b/i;
+                            
+                            if (!instructionWords.test(trimmed) || inIngredientsSection) {
+                                ingredients.push(trimmed);
+                            }
+                        }
+                    }
+                }
+
+                // Send to AI for categorization
+                const listContent = document.getElementById('shoppingListContent');
+                
+                if (ingredients.length === 0) {
+                    listContent.innerHTML = '<div class="empty-state">No ingredients found in recipes.</div>';
+                    document.getElementById('shoppingListSection').classList.remove('hidden');
+                    return;
+                }
+
+                listContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">AI is organizing your shopping list...</div>';
+                document.getElementById('shoppingListSection').classList.remove('hidden');
+
+                // Call AI categorization API with retry
+                let categorized;
+                let retryCount = 0;
+                const AI_MAX_RETRIES = 3;
+                const AI_RETRY_DELAY = 2000;
+                
+                while (retryCount < AI_MAX_RETRIES) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+                        
+                        const aiResponse = await fetch('/api/categorize', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ ingredients }),
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+
+                        if (!aiResponse.ok) {
+                            throw new Error('AI categorization failed');
+                        }
+
+                        categorized = await aiResponse.json();
+                        break; // Success, exit loop
+                    } catch (error) {
+                        retryCount++;
+                        if (retryCount >= AI_MAX_RETRIES) {
+                            throw error; // Give up after all attempts
+                        }
+                        console.log(`AI categorization failed (attempt ${retryCount}/${AI_MAX_RETRIES}), retrying in ${AI_RETRY_DELAY * retryCount}ms...`);
+                        listContent.innerHTML = `<div style="text-align: center; padding: 20px; color: #666;">Retrying... (attempt ${retryCount + 1}/${AI_MAX_RETRIES})</div>`;
+                        await new Promise(resolve => setTimeout(resolve, AI_RETRY_DELAY * retryCount));
+                    }
+                }
+
+                // Display categorized shopping list
+                let html = '';
+                const categoryOrder = ['Produce', 'Meat & Seafood', 'Dairy & Eggs', 'Bakery', 'Pantry & Dry Goods', 'Frozen', 'Beverages', 'Condiments & Sauces', 'Spices & Seasonings', 'Other'];
+                
+                for (const category of categoryOrder) {
+                    if (categorized[category] && categorized[category].length > 0) {
+                        html += `
+                            <div class="category-section">
+                                <div class="category-title">${category}</div>
+                                ${categorized[category].map(item => 
+                                    `<div class="shopping-list-item">• ${item}</div>`
+                                ).join('')}
+                            </div>
+                        `;
+                    }
+                }
+
+                // Add any categories not in the predefined order
+                for (const [category, items] of Object.entries(categorized)) {
+                    if (!categoryOrder.includes(category) && items.length > 0) {
+                        html += `
+                            <div class="category-section">
+                                <div class="category-title">${category}</div>
+                                ${items.map(item => 
+                                    `<div class="shopping-list-item">• ${item}</div>`
+                                ).join('')}
+                            </div>
+                        `;
+                    }
+                }
+
+                listContent.innerHTML = html || '<div class="empty-state">No ingredients found.</div>';
+                
+            } catch (error) {
+                alert('Error generating shopping list: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🛒 Generate Shopping List';
+            }
+        }
+
+        function closeShoppingList() {
+            document.getElementById('shoppingListSection').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
