@@ -1,9 +1,7 @@
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
-
+var MAX_RETRIES = 3;
+var RETRY_DELAY = 2000;
 
 module.exports = async function handler(req, res) {
-  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -19,8 +17,7 @@ module.exports = async function handler(req, res) {
   try {
     var ingredients = req.body.ingredients;
     console.log('Received ingredients:', ingredients.length);
-    
-    // Try AI first, fallback to rule-based if it fails
+
     var categorized;
     try {
       categorized = await categorizeWithAI(ingredients);
@@ -28,74 +25,54 @@ module.exports = async function handler(req, res) {
       console.log('AI failed, using fallback:', aiError.message);
       categorized = categorizeWithRules(ingredients);
     }
-    
+
     return res.status(200).json(categorized);
   } catch (error) {
     console.error('Error:', error);
     return res.status(500).json({ error: error.message });
   }
-}
+};
 
 async function categorizeWithAI(ingredients, retryCount) {
   if (retryCount === undefined) retryCount = 0;
 
   var ingredientList = ingredients.map(function(item, i) { return (i + 1) + '. ' + item; }).join('\n');
 
-  var prompt = 'You are a smart grocery shopping assistant.\n\n' +
-    'Given the following ingredient lines (possibly from multiple recipes), do ALL of the following:\n\n' +
-    'STEP 1 - COMBINE DUPLICATES:\n' +
-    '- If the same ingredient appears more than once, ADD the quantities together into a single entry.\n' +
-    '- Example: "2 tbsp olive oil" + "1 tbsp olive oil" = "3 tbsp olive oil"\n' +
-    '- Example: "1 cup flour" + "2 cups flour" = "3 cups flour"\n' +
-    '- Example: "200g chicken breast" + "300g chicken breast" = "500g chicken breast"\n' +
-    '- Treat similar items as the same (e.g. "garlic cloves" and "garlic, minced" are both garlic).\n' +
-    '- Convert units to match before combining (e.g. 15 mL = 1 tbsp, 5 mL = 1 tsp).\n\n' +
-    'STEP 2 - FORMAT EVERY ITEM AS "QUANTITY - ITEM NAME":\n' +
-    '- The quantity (number + unit) MUST come first, followed by a dash, then the item name.\n' +
-    '- Examples of CORRECT format:\n' +
-    '  "3 tbsp - Olive oil"\n' +
-    '  "500g - Chicken breast"\n' +
-    '  "2 cups - All-purpose flour"\n' +
-    '  "1/2 tsp - Black pepper"\n' +
-    '  "4 cloves - Garlic"\n' +
-    '  "1 large - Onion"\n' +
-    '- Use proper fractions: 0.5 = 1/2, 0.25 = 1/4, 0.75 = 3/4, 0.33 = 1/3\n' +
-    '- Capitalize the item name.\n\n' +
-    'STEP 3 - REMOVE NON-INGREDIENTS:\n' +
-    '- Skip lines that are not actual ingredients (e.g. "Servings: 4", "Storage:", instructions, notes, headers).\n\n' +
-    'STEP 4 - CATEGORIZE into grocery store sections.\n\n' +
-    'Ingredient lines:\n' + ingredientList + '\n\n' +
-    'Return ONLY a JSON object (no markdown, no explanation) with this structure:\n' +
-    '{\n' +
-    '  "Produce": ["quantity - Item name"],\n' +
-    '  "Meat & Seafood": ["quantity - Item name"],\n' +
-    '  "Dairy & Eggs": ["quantity - Item name"],\n' +
-    '  "Bakery": ["quantity - Item name"],\n' +
-    '  "Pantry & Dry Goods": ["quantity - Item name"],\n' +
-    '  "Frozen": ["quantity - Item name"],\n' +
-    '  "Beverages": ["quantity - Item name"],\n' +
-    '  "Condiments & Sauces": ["quantity - Item name"],\n' +
-    '  "Spices & Seasonings": ["quantity - Item name"]\n' +
-    '}\n\n' +
-    'CRITICAL RULES:\n' +
-    '- EVERY item MUST follow the format: "quantity - Item name" (quantity first, then dash, then name)\n' +
-    '- ALWAYS combine duplicate ingredients by adding quantities together\n' +
-    '- Only include categories that have items\n' +
-    '- Return valid JSON only, no extra text';
+  var prompt = 'You are a grocery list formatter.\n\n' +
+    'TASK: Take these ingredient lines, combine duplicates, and categorize them.\n\n' +
+    'INPUT INGREDIENTS:\n' + ingredientList + '\n\n' +
+    'RULES:\n' +
+    '1. COMBINE DUPLICATES: If the same ingredient appears multiple times, add quantities together.\n' +
+    '2. FORMAT: Every single item string MUST start with the quantity, then a dash, then the name.\n' +
+    '   CORRECT: "500 g - Potato"\n' +
+    '   CORRECT: "1.2 kg - Chicken drumsticks"\n' +
+    '   CORRECT: "3 tbsp - Soy sauce"\n' +
+    '   CORRECT: "6 cloves - Garlic"\n' +
+    '   WRONG: "Potato - 500 g"\n' +
+    '   WRONG: "Chicken drumsticks - 1.2 kg"\n' +
+    '   WRONG: "Potato, peeled and chunked - 500 g"\n' +
+    '3. SIMPLIFY item names: Remove prep instructions (peeled, minced, sliced, chunked, cut into pieces).\n' +
+    '   "Potato, peeled and chunked" becomes just "Potato"\n' +
+    '   "Garlic, minced" becomes just "Garlic"\n' +
+    '   "Yellow onion, sliced" becomes just "Onion"\n' +
+    '4. Skip non-ingredients (servings, notes, instructions, headers).\n' +
+    '5. Only include categories that have items.\n\n' +
+    'Return ONLY valid JSON (no markdown, no explanation):\n' +
+    '{"Produce":["500 g - Potato","200 g - Carrot"],"Meat & Seafood":["1.2 kg - Chicken drumsticks"],"Dairy & Eggs":[],"Pantry & Dry Goods":[],"Condiments & Sauces":["60 mL - Soy sauce"],"Spices & Seasonings":["15 g - Gochugaru"]}';
 
   var requestBody = {
     model: 'gpt-4o-mini',
     messages: [
       {
         role: 'system',
-        content: 'You are a grocery shopping assistant. You MUST combine duplicate ingredients by adding their quantities. You MUST format every item as "quantity - Item name" with quantity first. Return valid JSON only.'
+        content: 'You format grocery lists. Every item MUST be "QUANTITY - NAME" with quantity FIRST. Example: "500 g - Potato" NOT "Potato - 500 g". Simplify names by removing prep words. Return only valid JSON.'
       },
       {
         role: 'user',
         content: prompt
       }
     ],
-    temperature: 0.1
+    temperature: 0.0
   };
 
   try {
@@ -123,13 +100,15 @@ async function categorizeWithAI(ingredients, retryCount) {
 
     var categorized = JSON.parse(content);
 
-    // Remove empty categories
+    // Post-process: ensure quantity-first format and remove empty categories
     var result = {};
     for (var category in categorized) {
       if (categorized.hasOwnProperty(category)) {
         var items = categorized[category];
         if (items && items.length > 0) {
-          result[category] = items;
+          result[category] = items.map(function(item) {
+            return enforceQuantityFirst(item);
+          });
         }
       }
     }
@@ -142,6 +121,31 @@ async function categorizeWithAI(ingredients, retryCount) {
     }
     throw error;
   }
+}
+
+// Post-processing: if AI returns "Item name - quantity", flip it to "quantity - Item name"
+function enforceQuantityFirst(item) {
+  if (!item || typeof item !== 'string') return item;
+
+  // Already correct: starts with a number
+  if (/^\d/.test(item.trim())) return item;
+
+  // Check for pattern: "Name - quantity" or "Name â quantity"
+  var dashMatch = item.match(/^(.+?)\s*[-\u2014\u2013]\s*(.+)$/);
+  if (dashMatch) {
+    var left = dashMatch[1].trim();
+    var right = dashMatch[2].trim();
+    // If right side starts with a number, it's the quantity - flip it
+    if (/^\d/.test(right)) {
+      return right + ' - ' + left;
+    }
+    // If left side starts with a number, it's already correct
+    if (/^\d/.test(left)) {
+      return left + ' - ' + right;
+    }
+  }
+
+  return item;
 }
 
 function categorizeWithRules(ingredients) {
@@ -168,9 +172,9 @@ function categorizeWithRules(ingredients) {
 
   var filtered = ingredients.filter(function(item) {
     var lower = item.toLowerCase();
-    return lower.indexOf('serving') === -1 && 
-           lower.indexOf('storage') === -1 && 
-           lower.indexOf('keep') === -1 && 
+    return lower.indexOf('serving') === -1 &&
+           lower.indexOf('storage') === -1 &&
+           lower.indexOf('keep') === -1 &&
            lower.indexOf('note') === -1 &&
            lower.indexOf('let me know') === -1 &&
            /\d/.test(item);
