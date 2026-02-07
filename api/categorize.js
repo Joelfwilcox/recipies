@@ -1,7 +1,9 @@
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
+
 module.exports = async function handler(req, res) {
+  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,10 +17,11 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { ingredients } = req.body;
+    var ingredients = req.body.ingredients;
     console.log('Received ingredients:', ingredients.length);
     
-    let categorized;
+    // Try AI first, fallback to rule-based if it fails
+    var categorized;
     try {
       categorized = await categorizeWithAI(ingredients);
     } catch (aiError) {
@@ -33,47 +36,66 @@ module.exports = async function handler(req, res) {
   }
 }
 
-async function categorizeWithAI(ingredients, retryCount = 0) {
+async function categorizeWithAI(ingredients, retryCount) {
+  if (retryCount === undefined) retryCount = 0;
+
   var ingredientList = ingredients.map(function(item, i) { return (i + 1) + '. ' + item; }).join('\n');
-  var prompt = 'You are a smart grocery shopping assistant. Given a list of ingredient lines from multiple recipes, you need to:\n\n' +
-    '1. Parse each ingredient line to extract the quantity, unit, and ingredient name\n' +
-    '2. Normalize units (convert mL to tbsp, g to tsp, etc. when appropriate)\n' +
-    '3. Combine duplicate ingredients (e.g., "2 tbsp olive oil" + "15 mL olive oil" = "3 tbsp olive oil")\n' +
-    '4. Remove non-ingredient lines (like "Servings: 4", "Storage:", instructions, notes)\n' +
-    '5. Categorize into grocery store sections\n\n' +
+
+  var prompt = 'You are a smart grocery shopping assistant.\n\n' +
+    'Given the following ingredient lines (possibly from multiple recipes), do ALL of the following:\n\n' +
+    'STEP 1 - COMBINE DUPLICATES:\n' +
+    '- If the same ingredient appears more than once, ADD the quantities together into a single entry.\n' +
+    '- Example: "2 tbsp olive oil" + "1 tbsp olive oil" = "3 tbsp olive oil"\n' +
+    '- Example: "1 cup flour" + "2 cups flour" = "3 cups flour"\n' +
+    '- Example: "200g chicken breast" + "300g chicken breast" = "500g chicken breast"\n' +
+    '- Treat similar items as the same (e.g. "garlic cloves" and "garlic, minced" are both garlic).\n' +
+    '- Convert units to match before combining (e.g. 15 mL = 1 tbsp, 5 mL = 1 tsp).\n\n' +
+    'STEP 2 - FORMAT EVERY ITEM AS "QUANTITY - ITEM NAME":\n' +
+    '- The quantity (number + unit) MUST come first, followed by a dash, then the item name.\n' +
+    '- Examples of CORRECT format:\n' +
+    '  "3 tbsp - Olive oil"\n' +
+    '  "500g - Chicken breast"\n' +
+    '  "2 cups - All-purpose flour"\n' +
+    '  "1/2 tsp - Black pepper"\n' +
+    '  "4 cloves - Garlic"\n' +
+    '  "1 large - Onion"\n' +
+    '- Use proper fractions: 0.5 = 1/2, 0.25 = 1/4, 0.75 = 3/4, 0.33 = 1/3\n' +
+    '- Capitalize the item name.\n\n' +
+    'STEP 3 - REMOVE NON-INGREDIENTS:\n' +
+    '- Skip lines that are not actual ingredients (e.g. "Servings: 4", "Storage:", instructions, notes, headers).\n\n' +
+    'STEP 4 - CATEGORIZE into grocery store sections.\n\n' +
     'Ingredient lines:\n' + ingredientList + '\n\n' +
     'Return ONLY a JSON object (no markdown, no explanation) with this structure:\n' +
     '{\n' +
-    '  "Produce": ["ingredient with quantity"],\n' +
-    '  "Meat & Seafood": ["ingredient with quantity"],\n' +
-    '  "Dairy & Eggs": ["ingredient with quantity"],\n' +
-    '  "Bakery": ["ingredient with quantity"],\n' +
-    '  "Pantry & Dry Goods": ["ingredient with quantity"],\n' +
-    '  "Frozen": ["ingredient with quantity"],\n' +
-    '  "Beverages": ["ingredient with quantity"],\n' +
-    '  "Condiments & Sauces": ["ingredient with quantity"],\n' +
-    '  "Spices & Seasonings": ["ingredient with quantity"]\n' +
+    '  "Produce": ["quantity - Item name"],\n' +
+    '  "Meat & Seafood": ["quantity - Item name"],\n' +
+    '  "Dairy & Eggs": ["quantity - Item name"],\n' +
+    '  "Bakery": ["quantity - Item name"],\n' +
+    '  "Pantry & Dry Goods": ["quantity - Item name"],\n' +
+    '  "Frozen": ["quantity - Item name"],\n' +
+    '  "Beverages": ["quantity - Item name"],\n' +
+    '  "Condiments & Sauces": ["quantity - Item name"],\n' +
+    '  "Spices & Seasonings": ["quantity - Item name"]\n' +
     '}\n\n' +
-    'Rules:\n' +
-    '- Combine duplicates intelligently (e.g., "1 tbsp olive oil" + "2 tbsp olive oil" = "3 tbsp olive oil")\n' +
-    '- Normalize units: 15 mL = 1 tbsp, 5 mL = 1 tsp\n' +
-    '- Skip non-ingredient lines (servings, storage, instructions)\n' +
-    '- Use proper fractions: 0.5 = 1/2, 0.25 = 1/4, 0.75 = 3/4\n' +
-    '- Only include actual ingredients with quantities';
+    'CRITICAL RULES:\n' +
+    '- EVERY item MUST follow the format: "quantity - Item name" (quantity first, then dash, then name)\n' +
+    '- ALWAYS combine duplicate ingredients by adding quantities together\n' +
+    '- Only include categories that have items\n' +
+    '- Return valid JSON only, no extra text';
 
   var requestBody = {
     model: 'gpt-4o-mini',
     messages: [
       {
         role: 'system',
-        content: 'You are a helpful grocery shopping assistant that parses and categorizes ingredients. Always return valid JSON only.'
+        content: 'You are a grocery shopping assistant. You MUST combine duplicate ingredients by adding their quantities. You MUST format every item as "quantity - Item name" with quantity first. Return valid JSON only.'
       },
       {
         role: 'user',
         content: prompt
       }
     ],
-    temperature: 0.3
+    temperature: 0.1
   };
 
   try {
@@ -101,10 +123,14 @@ async function categorizeWithAI(ingredients, retryCount = 0) {
 
     var categorized = JSON.parse(content);
 
+    // Remove empty categories
     var result = {};
     for (var category in categorized) {
-      if (categorized[category] && categorized[category].length > 0) {
-        result[category] = categorized[category];
+      if (categorized.hasOwnProperty(category)) {
+        var items = categorized[category];
+        if (items && items.length > 0) {
+          result[category] = items;
+        }
       }
     }
 
@@ -150,21 +176,23 @@ function categorizeWithRules(ingredients) {
            /\d/.test(item);
   });
 
-  for (var idx = 0; idx < filtered.length; idx++) {
-    var ingredient = filtered[idx];
+  for (var i = 0; i < filtered.length; i++) {
+    var ingredient = filtered[i];
     var categorized = false;
     var lowerIngredient = ingredient.toLowerCase();
 
-    for (var cat in categoryKeywords) {
-      var keywords = categoryKeywords[cat];
-      for (var k = 0; k < keywords.length; k++) {
-        if (lowerIngredient.indexOf(keywords[k]) !== -1) {
-          categories[cat].push(ingredient);
-          categorized = true;
-          break;
+    for (var category in categoryKeywords) {
+      if (categoryKeywords.hasOwnProperty(category)) {
+        var keywords = categoryKeywords[category];
+        for (var k = 0; k < keywords.length; k++) {
+          if (lowerIngredient.indexOf(keywords[k]) !== -1) {
+            categories[category].push(ingredient);
+            categorized = true;
+            break;
+          }
         }
+        if (categorized) break;
       }
-      if (categorized) break;
     }
 
     if (!categorized) {
@@ -173,9 +201,9 @@ function categorizeWithRules(ingredients) {
   }
 
   var result = {};
-  for (var category in categories) {
-    if (categories[category].length > 0) {
-      result[category] = categories[category];
+  for (var cat in categories) {
+    if (categories.hasOwnProperty(cat) && categories[cat].length > 0) {
+      result[cat] = categories[cat];
     }
   }
 
