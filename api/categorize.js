@@ -32,6 +32,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 };
+
 async function categorizeWithAI(ingredients, retryCount) {
   if (retryCount === undefined) retryCount = 0;
 
@@ -74,7 +75,6 @@ async function categorizeWithAI(ingredients, retryCount) {
     ],
     temperature: 0.0
   };
-
   try {
     var response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -122,6 +122,7 @@ async function categorizeWithAI(ingredients, retryCount) {
     throw error;
   }
 }
+
 // Post-processing: if AI returns "Item name - quantity", flip it to "quantity - Item name"
 function enforceQuantityFirst(item) {
   if (!item || typeof item !== 'string') return item;
@@ -160,6 +161,57 @@ function enforceQuantityFirst(item) {
 
   return item;
 }
+
+// Simplify ingredient name and enforce quantity-first format
+function simplifyAndFormat(item) {
+  if (!item || typeof item !== 'string') return item;
+  
+  // First, split on the LAST em dash/en dash/dash separator to separate name from quantity
+  var separators = [' \u2014 ', ' \u2013 ', ' - '];
+  var bestIdx = -1;
+  var bestSep = '';
+  for (var s = 0; s < separators.length; s++) {
+    var idx = item.lastIndexOf(separators[s]);
+    if (idx > bestIdx) {
+      bestIdx = idx;
+      bestSep = separators[s];
+    }
+  }
+  
+  var name, quantity;
+  if (bestIdx > 0) {
+    var left = item.substring(0, bestIdx).trim();
+    var right = item.substring(bestIdx + bestSep.length).trim();
+    // Figure out which side is the quantity (starts with digit)
+    if (/^\d/.test(right)) {
+      name = left;
+      quantity = right;
+    } else if (/^\d/.test(left)) {
+      quantity = left;
+      name = right;
+    } else {
+      return item; // Can't determine, return as-is
+    }
+  } else {
+    return item; // No separator found, return as-is
+  }
+  
+  // Simplify the name part only - remove prep instructions
+  name = name
+    .replace(/,?\s*(peeled|minced|sliced|chunked|diced|chopped|grated|crushed|julienned|cubed|halved|quartered)\s*(and\s*)?/gi, '')
+    .replace(/,?\s*cut into[^,]*/gi, '')
+    .replace(/,?\s*finely[^,]*/gi, '')
+    .replace(/,?\s*roughly[^,]*/gi, '')
+    .replace(/,?\s*thinly[^,]*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Remove trailing commas or 'and'
+  name = name.replace(/[,\s]+$/, '').replace(/\s+and\s*$/, '').trim();
+  
+  return quantity + ' - ' + name;
+}
+
 
 function categorizeWithRules(ingredients) {
   var categories = {
@@ -203,7 +255,7 @@ function categorizeWithRules(ingredients) {
         var keywords = categoryKeywords[category];
         for (var k = 0; k < keywords.length; k++) {
           if (lowerIngredient.indexOf(keywords[k]) !== -1) {
-            categories[category].push(ingredient);
+            categories[category].push(simplifyAndFormat(ingredient));
             categorized = true;
             break;
           }
@@ -213,7 +265,7 @@ function categorizeWithRules(ingredients) {
     }
 
     if (!categorized) {
-      categories['Other'].push(ingredient);
+      categories['Other'].push(simplifyAndFormat(ingredient));
     }
   }
 
