@@ -32,7 +32,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 };
-
 async function categorizeWithAI(ingredients, retryCount) {
   if (retryCount === undefined) retryCount = 0;
 
@@ -48,6 +47,7 @@ async function categorizeWithAI(ingredients, retryCount) {
     '   CORRECT: "1.2 kg - Chicken drumsticks"\n' +
     '   CORRECT: "3 tbsp - Soy sauce"\n' +
     '   CORRECT: "6 cloves - Garlic"\n' +
+    '   CORRECT: "60 mL - Low-sodium soy sauce"\n' +
     '   WRONG: "Potato - 500 g"\n' +
     '   WRONG: "Chicken drumsticks - 1.2 kg"\n' +
     '   WRONG: "Potato, peeled and chunked - 500 g"\n' +
@@ -122,19 +122,32 @@ async function categorizeWithAI(ingredients, retryCount) {
     throw error;
   }
 }
-
 // Post-processing: if AI returns "Item name - quantity", flip it to "quantity - Item name"
 function enforceQuantityFirst(item) {
   if (!item || typeof item !== 'string') return item;
+  item = item.trim();
 
   // Already correct: starts with a number
-  if (/^\d/.test(item.trim())) return item;
+  if (/^\d/.test(item)) return item;
 
-  // Check for pattern: "Name - quantity" or "Name â quantity"
-  var dashMatch = item.match(/^(.+?)\s*[-\u2014\u2013]\s*(.+)$/);
-  if (dashMatch) {
-    var left = dashMatch[1].trim();
-    var right = dashMatch[2].trim();
+  // Strategy: find the LAST occurrence of a separator (em dash, en dash, or " - ")
+  // This handles ingredient names that contain hyphens like "Low-sodium soy sauce"
+  var separators = [' \u2014 ', ' \u2013 ', ' - '];
+  var bestIdx = -1;
+  var bestSep = '';
+
+  for (var s = 0; s < separators.length; s++) {
+    var idx = item.lastIndexOf(separators[s]);
+    if (idx > bestIdx) {
+      bestIdx = idx;
+      bestSep = separators[s];
+    }
+  }
+
+  if (bestIdx > 0) {
+    var left = item.substring(0, bestIdx).trim();
+    var right = item.substring(bestIdx + bestSep.length).trim();
+
     // If right side starts with a number, it's the quantity - flip it
     if (/^\d/.test(right)) {
       return right + ' - ' + left;
